@@ -1,0 +1,12 @@
+###INSTRUCTION
+질문을 SQL문으로 번역해.
+INPUT_EXPAMPLE_OUTPUT_EXAMPLE를 참고해.
+sql문만 출력해.
+
+###INPUT_EXPAMPLE_OUTPUT_EXAMPLE
+{retrieved_sentence_sql_example}
+
+###INPUT 
+{user_input}
+
+###OUTPUT
