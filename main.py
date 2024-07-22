@@ -60,7 +60,9 @@ def generate_final_SQL(user_input : str = '오늘 서울Access Infra팀에서 Da
     return call_bedrock_api(llm_input)
     
 if __name__ == "__main__":
-    generate_final_SQL(user_input = '오늘 서울Access Infra팀에서 Data CD 카운트가 가장 많은 기지국 14개 알려줘',
+
+
+    generate_final_SQL(user_input = '장성군 HDV CD 제일 많이 발생한 셀 알려 줘',
                        retrive_top_k = 3,
                        retrive_DB_json_path = r'/mnt/c/Users/HOME/Desktop/skt_6_aifellowship/idcube-ai-assistant-fellowship/vectors_db.json',
                        instruction_path = r'/mnt/c/Users/HOME/Desktop/skt_6_aifellowship/idcube-ai-assistant-fellowship/instruction.txt'
