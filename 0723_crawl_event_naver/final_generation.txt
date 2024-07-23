@@ -1,0 +1,10 @@
+입력 자연어를 SQL문으로 변환해. 변환한 SQL문을 읽기 쉬운 포멧으로 출력해.
+출력에 대한 근거를 명확히 단계별로 설명해.
+
+###EXAMPLE
+{retrieved_top_k}
+
+###INPUT
+{user_question}
+
+###OUTPUT
