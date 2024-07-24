@@ -1,5 +1,3 @@
-
-
 def get_event_info_from_naver(url="https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=축제"):
     from playwright.sync_api import sync_playwright
     from bs4 import BeautifulSoup
