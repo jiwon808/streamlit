@@ -36,3 +36,12 @@ def my_graph():
     # Compile
     app = workflow.compile()
     return app
+
+## 20240725
+
+retrieve할 때 opensearch 연결해서,
+kdbtest 테이블의 qa데이터의 q를 openai text-embedding-3-large 로 벡터화한 새 테이블인 
+kdbtest_vectorized_jihoon 테이블로부터 Lexical/Vector search를 수행하도록 함.
+Lexical search의 경우 기본 토크나이징 방법을 사용, Vector search의 경우 코사인 유사도 기반 검색.
+input context에는 Lexical search의 결과 3개, Vector search의 결과 3개 총 6개가 입력으로 들어가지만,
+Lexical search의 경우 토큰 매칭률이 0%인 입력에 한해 총 결과가 0개가 되어 Vector search의 결과만 fewshot으로 들어가는 경우가 있음

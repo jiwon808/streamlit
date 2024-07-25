@@ -1,0 +1,11 @@
+입력 자연어를 SQL문으로 변환해야 해.
+먼저 변환의 근거를 명확히 단계별로 설명해.
+그 다음, 변환한 SQL문을 읽기 쉬운 포멧으로 출력해. 
+
+###EXAMPLE
+{retrieved_top_k}
+
+###INPUT
+{user_question}
+
+###OUTPUT

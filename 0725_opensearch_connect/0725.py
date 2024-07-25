@@ -12,8 +12,12 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain.memory import StreamlitChatMessageHistory
 from sklearn.metrics.pairwise import cosine_similarity
+import opensearchpy
+from opensearchpy import OpenSearch
+from opensearchpy.helpers import scan
 from openai import OpenAI
 import numpy as np
+import sqlparse
 
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -24,6 +28,14 @@ os.environ['AWS_SECRET_ACCESS_KEY'] = os.getenv('AWS_SECRET_ACCESS_KEY')
 os.environ['AWS_SESSION_TOKEN'] = os.getenv('AWS_SESSION_TOKEN')
 os.environ["OPENAI_API_KEY"] = os.getenv('OPEN_AI_KEY')
 
+opensearch_client = OpenSearch(
+    hosts=[{'host': os.getenv('AWS_opensearch_Domain_Endpoint')  , 'port': 443}],
+    http_auth=(os.getenv('AWS_opensearch_ID'), os.getenv('AWS_opensearch_PassWord')),
+    use_ssl=True,
+    verify_certs=True,
+    ssl_show_warn=False,
+    timeout=30 #30초 이상 서치하면 넘나 길다.
+)
 
 def LLM(LLM_input):
     client = boto3.client('bedrock-runtime', region_name='us-east-1')
@@ -41,9 +53,9 @@ def LLM(LLM_input):
     output = response_json['content'][0]['text']
     return output
 
-def LLM_get_embedding(text):
+def LLM_get_embedding(text, model_name="text-embedding-3-large"):
     client = OpenAI(api_key=os.getenv('OPEN_AI_KEY'))
-    response = client.embeddings.create(input=text,model="text-embedding-3-large")
+    response = client.embeddings.create(input=text,model=model_name)
     print(text)
     return response.data[0].embedding
 
@@ -127,23 +139,57 @@ def LLM_event_list(state):
 
 def Retrieve(state):
     print(f"Retrieve 가 검색하는 중")
-    top_k = 3
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, 'vectorized_qa_dataset.csv') 
-    #db 구성 : question(사전 구성한 유저 자연어 질문),query(사전 구성한 정답 sql 쿼리문),question_vector(사전 구성한 유저 자연의 질문을 벡터화)
-    df = pd.read_csv(file_path)
-
+    def lexical_search(index_name, user_query, size=3):
+        search_query = {
+            'query': {
+                'match': {
+                    'question': user_query  # Assuming the documents have a field named 'content'
+                }
+            },
+            'size': size
+        }
+        response = opensearch_client.search(index=index_name, body=search_query)
+        return response['hits']['hits']
+    
+    def vector_search(index_name, user_query, size=3):
+        query_vector = LLM_get_embedding(user_query, model_name="text-embedding-3-large")
+        search_query = {
+            "size": size,
+            "query": {
+                "script_score": {
+                    "query": {
+                        "match_all": {}
+                    },
+                    "script": {
+                        "source": "knn_score",
+                        "lang": "knn",
+                        "params": {
+                            "field": "question_vector",
+                            "query_value": query_vector,
+                            "space_type": "cosinesimil"
+                        }
+                    }
+                }
+            }
+        }
+        response = opensearch_client.search(index=index_name, body=search_query)
+        return response['hits']['hits']
+    
     user_question = state["user_question"]
-    user_question_vector = np.array(LLM_get_embedding(user_question)) # 유저가 프론트단에 입력한 실전 자연어 질문을 벡터화(openai : text-embedding-3-large)
+    lexical_searched_data = lexical_search('kdbtest_vectorized_jihoon', user_question, size=3)
+    vector_searched_data = vector_search('kdbtest_vectorized_jihoon', user_question, size=3)
 
-    # Convert the string representation of lists to actual lists
-    df['question_vector'] = df['question_vector'].apply(lambda x: np.fromstring(x.strip('[]'), sep=','))
+    lexical_search_result, vector_search_result = [], []
 
-    df['similarity'] = df['question_vector'].apply(lambda x: cosine_similarity([x], [user_question_vector])[0][0]) # 실전 질문과 db속 질문들의 유사도를 벡터기반으로 비교
-    top_k_rows = df.nlargest(top_k, 'similarity')[['question', 'query']] # 가장 코사인 유사도가 높은 top 3 선별
-    top_k_rows = [(row['question'], row['query']) for _, row in top_k_rows.iterrows()]
-    print(f"Retrieve 가 검색한 데이터 k개 : {top_k_rows}")
-    state["top_k"] = top_k_rows # langgraph state가 Retrieve노드를 지나면 "top_k" : top_k_rows 정보를 갖게 함
+    for data in lexical_searched_data:
+        lexical_search_result.append((data['_source']['question'], data['_source']['query']))
+    for data in vector_searched_data:
+        vector_search_result.append((data['_source']['question'], data['_source']['query']))
+    
+    print(f"Lexival Retrieve 가 검색한 데이터 k개 : {lexical_search_result}")
+    print(f"Vector Retrieve 가 검색한 데이터 k개 : {vector_search_result}")
+
+    state["top_k"] = lexical_search_result + vector_search_result 
 
     return state 
 
@@ -211,7 +257,7 @@ if __name__ == '__main__':
     st.title("Text2SQL Chatbot")
 
     with st.sidebar :
-        st.subheader("유저 입력이 이벤트 리스트 요청이면 리스트 생성, 분석 요청이면 sql문 생성")
+        st.subheader("유저 입력이 이벤트 리스트 요청이면 리스트 생성, 분석 요청이면 Lexical+Vector서치 후 sql문 생성")
         st.image(my_graph_image(my_graph()))
 
     st.session_state['conversation'] = None
@@ -243,23 +289,33 @@ if __name__ == '__main__':
             for output in my_graph().stream(inputs):
                 for node, state in output.items():
                     if node == "LLM_Router":
-                        st.markdown(f"쉿! '{node}' 진행 중.")
+                        st.markdown(f":alien: 쉿! '{node}' 진행 중. :alien:")
                         st.markdown("\n")
                         st.markdown(f"user_intent: {state['user_intent']}")
                     elif node == "LLM_event_list":
-                        st.markdown(f"쉿! '{node}' 진행 중.")
+                        st.markdown(f":alien: 쉿! '{node}' 진행 중. :alien:")
                         st.markdown("\n")
                         st.markdown(f"events_output: {state['events_output']}")
                     elif node == 'Retrieve':
-                        st.markdown(f"쉿! '{node}' 진행 중.")
+                        st.markdown(f":alien: 쉿! '{node}' 진행 중. :alien:")
                         st.markdown("\n")
                         for k, (DB_question, DB_query) in enumerate(state['top_k'], start=1):
                             st.markdown(f"검색된 관련 질문 {k}: {DB_question}")
                             st.markdown("\n")
                     elif node == 'LLM_Final_Generate':
-                        st.markdown(f"쉿! '{node}' 진행 중.")
+                        st.markdown(f":alien: 쉿! '{node}' 진행 중. :alien:")
                         st.markdown("\n")
-                        response = state["final_output"].replace('\n', '\u2028')  # 웹에서 줄 바꿈 표시
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
+                        text = state["final_output"]
+                        # SQL 코드 추출
+                        raw_sql = text.split('```sql')[1].split('```')[0].strip()
 
+                        # SQL 코드 포맷팅
+                        formatted_sql = sqlparse.format(raw_sql, reindent=True, keyword_case='upper')
+
+                        # 포맷팅된 SQL 코드를 포함한 응답 생성
+                        response = text.replace(raw_sql, formatted_sql)
+
+                        # Streamlit에 표시
+                        st.markdown(response, unsafe_allow_html=True)
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+                   
