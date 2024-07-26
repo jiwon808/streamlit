@@ -139,6 +139,42 @@ def LLM_event_list(state):
 
 def Retrieve(state):
     print(f"Retrieve 가 검색하는 중")
+
+    KDB_index = 'kdbtest_vectorized_tokenized_jihoon'
+    # 이 KDB index에서부터 qa데이터를 뽑아옴. 요거는 지훈이 만든 토크나이징 룰 + 사전 패키지 기반으로 만들어진 인덱스임. 
+    # 사전 목록을 바꾸고 싶으면, jihoon-dictionary패키지를 업데이트 해야 함.
+    # jihoon-dictionary패키지는, s3://infra-ai-assistant-opensearch/jihoon_dictionary.txt를 참조하고 있음.
+    # s3://infra-ai-assistant-opensearch/jihoon_dictionary.txt를 업데이트 한 다음 패키지를 업데이트하면 업데이트된 새로운 룰로 토크나이징함.
+
+    mapping = opensearch_client.indices.get_mapping(index=KDB_index)
+    import json
+    print(f"검색하려는 KDB INDEX 이름 : {KDB_index}")
+    print(f"KDB INDEX 구조 : {json.dumps(mapping, indent=2)}")
+
+    response = opensearch_client.indices.get(index=KDB_index)
+    settings = response[KDB_index]['settings']['index']['analysis']
+    analyzer_setting = settings['analyzer']
+    analyzer_name = str(list(analyzer_setting.keys())[0])
+    tokenizer_setting = settings['tokenizer']
+    tokenizer_name = str(list(tokenizer_setting.keys())[0])
+    print(f"인덱스 이름 : {KDB_index}")
+    print(f"이 인덱스의 lexical 세팅값\n")
+    print("<<<<<<<<<<<<<<<<<<<<<<<")
+    print(analyzer_setting)
+    print(tokenizer_setting)
+    print(">>>>>>>>>>>>>>>>>>>>>>>\n")
+
+
+    def lexical_analyze(index_name, text, analyzer_name): 
+        #토크나이징 결과를 시각적으로 확인하기 위한 분석 쿼리. 실제로는 lexical_search도중에 이미 토크나이징이 되지만, 
+        #토크나이징된 리스트 확인이 lexical_search의 response로 확인이 안 돼서 만듦
+        analyze_query = {
+            "analyzer": analyzer_name,
+            "text": text
+        }
+        response = opensearch_client.indices.analyze(index=index_name, body=analyze_query)
+        return [token['token'] for token in response['tokens']]
+    
     def lexical_search(index_name, user_query, size=3):
         search_query = {
             'query': {
@@ -176,8 +212,8 @@ def Retrieve(state):
         return response['hits']['hits']
     
     user_question = state["user_question"]
-    lexical_searched_data = lexical_search('kdbtest_vectorized_jihoon', user_question, size=3)
-    vector_searched_data = vector_search('kdbtest_vectorized_jihoon', user_question, size=3)
+    lexical_searched_data = lexical_search(KDB_index, user_question, size=3)
+    vector_searched_data = vector_search(KDB_index, user_question, size=3)
 
     lexical_search_result, vector_search_result = [], []
 
@@ -186,10 +222,18 @@ def Retrieve(state):
     for data in vector_searched_data:
         vector_search_result.append((data['_source']['question'], data['_source']['query']))
     
-    print(f"Lexival Retrieve 가 검색한 데이터 k개 : {lexical_search_result}")
+    print(f"Lexical Retrieve 가 검색한 데이터 k개 : {lexical_search_result}")
     print(f"Vector Retrieve 가 검색한 데이터 k개 : {vector_search_result}")
 
     state["top_k"] = lexical_search_result + vector_search_result 
+
+    user_question_tokens = lexical_analyze(KDB_index, user_question, analyzer_name)
+    retrieved_question_tokens = [lexical_analyze(KDB_index, retrieved_question[0], analyzer_name) for retrieved_question in state["top_k"]]
+
+    print(f"유저 입력 자연어의 토큰화 결과 : {user_question_tokens}")
+    print('-'*100)
+    for retrieved_question_token in retrieved_question_tokens:
+        print(f"검색된 자연어의 토큰화 결과 : {retrieved_question_token}")
 
     return state 
 

@@ -89,7 +89,7 @@ for docu in documents:
     doc = {
         "question": docu["question"],
         "query": docu["query"],
-        "question_vector": LLM_get_embedding(docu["question"])  # dense_vector로 할당할 배열
+        "question_vector": LLM_get_embedding(docu["question"])  # knn_vector로 할당할 배열
     }
 
     # 문서를 인덱스에 추가
