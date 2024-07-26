@@ -45,3 +45,19 @@ kdbtest_vectorized_jihoon 테이블로부터 Lexical/Vector search를 수행하�
 Lexical search의 경우 기본 토크나이징 방법을 사용, Vector search의 경우 코사인 유사도 기반 검색.
 input context에는 Lexical search의 결과 3개, Vector search의 결과 3개 총 6개가 입력으로 들어가지만,
 Lexical search의 경우 토큰 매칭률이 0%인 입력에 한해 총 결과가 0개가 되어 Vector search의 결과만 fewshot으로 들어가는 경우가 있음
+
+## 20240726
+
+0726_custom_dict폴더 안에서 streamlit run 0726.py
+
+Lexical search를 위한 전용 테이블 만듦.
+
+인덱스명 : kdbtest_vectorized_tokenized_jihoon
+{'jihoon_analyzer': {'filter': ['lowercase'], 'type': 'custom', 'tokenizer': 'jihoon_dict_tokenizer'}}
+{'jihoon_dict_tokenizer': {'type': 'nori_tokenizer', 'user_dictionary': 'analyzers/F120803228', 'decompound_mode': 'mixed'}}
+
+원본 사전은 s3://infra-ai-assistant-opensearch/jihoon_dictionary.txt 
+Amazon OpenSearch Service 패키지는 jihoon-dictionary, 패키지ID는 F120803228
+
+streamlit run 0726.py 후 분석 의도의 쿼리가 들어오면 retrieve된 결과들에 대해 2차적으로 lexical_analyze한 로그를 찍음.
+이 로그를 기반으로 사전 구성하기
