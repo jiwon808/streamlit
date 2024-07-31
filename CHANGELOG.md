@@ -74,3 +74,4 @@ streamlit run 0726.py 후 분석 의도의 쿼리가 들어오면 retrieve된 �
 #### 매우 도메인 한정적인 사전이 만들어 질 것으로 예상됨
 #### s3에 저장한 사전 txt 파일을 opensearch 패키지로 다시 참조하게 하는 방식이 사전 업데이트가 매우 느림. 
 #### 따라서 그냥 user_dictionary_rules랑 synonyms filter를 인덱스 생성할 때 직접 정의하면서 실험하고 s3의 사전은 한번에 업데이트하는게 훨씬 효율적인 방식임.
+#### table_generate폴더 안의 add_tokenized_table를 통해서 사전과 동의어 목록을 정의하고 인덱스를 생성, 그 인덱스 안의 qa데이터와 토크나이징 룰을 기반으로 RAG
