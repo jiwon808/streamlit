@@ -45,7 +45,7 @@ def LLM(LLM_input):
     response = client.invoke_model(
         modelId='anthropic.claude-3-5-sonnet-20240620-v1:0',  # 사용할 모델 ID
         body=json.dumps({
-        "max_tokens": 1000,
+        "max_tokens": 8192,
         "messages": [{"role": "user", "content": LLM_input}],
         "anthropic_version": "bedrock-2023-05-31"
     })
