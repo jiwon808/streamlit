@@ -62,12 +62,8 @@ print(tokenizer_setting)
 print(">>>>>>>>>>>>>>>>>>>>>>>\n")
 
 
-user_query = "전남북 지역의 운용 중이 아닌 DU 장비 현황과 상세 정보를 확인할 수 있을까요?"
+user_query = "전북 지역의 특정 중계기들에 대한 어제의 무선 및 유선 보고서 정보와 주파수별 전방 출력 데이터를 어떻게 확인할 수 있나요?"
 response_data, tokenized_user_query = analyze_text(KDB_index, user_query, "jihoon_analyzer")
-
-print(f"Original query: {user_query}")
-print(f"Tokenized user query: {tokenized_user_query}")
-print(response_data)
 
 # 고유명사 사전을 업데이트하려면, s3경로에 있는 txt("s3://infra-ai-assistant-opensearch/jihoon_dictionary.txt")
 # 수정후, 패키지 업데이트를 해야함(넘나귀찮은것)
@@ -83,3 +79,10 @@ print(response_data)
 # 매우 도메인 한정적인 사전이 만들어 질 것으로 예상됨
 # s3에 저장한 사전 txt 파일을 opensearch 패키지로 다시 참조하게 하는 방식이 사전 업데이트가 매우 느림. 
 # 그냥 user_dictionary_rules랑 synonyms filter를 인덱스 생성할 때 직접 정의하면서 실험하고 s3의 사전은 한번에 업데이트하는게 훨씬 효율적인 방식임.
+
+print("-"*100)
+print(f"Original query: {user_query}")
+print("-"*100)
+print(f"Tokenized user query: {tokenized_user_query}")
+print("-"*100)
+
