@@ -53,6 +53,7 @@ def LLM(LLM_input):
     response_body = response['body'].read()
     response_json = json.loads(response_body)
     output = response_json['content'][0]['text']
+    print()
     return output
 
 def LLM_get_embedding(text, model_name="text-embedding-3-large"):
