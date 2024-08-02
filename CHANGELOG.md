@@ -77,3 +77,11 @@ streamlit run 0726.py 후 분석 의도의 쿼리가 들어오면 retrieve된 �
 #### table_generate폴더 안의 add_tokenized_table를 통해서 사전과 동의어 목록을 정의하고 인덱스를 생성, 그 인덱스 안의 qa데이터와 토크나이징 룰을 기반으로 RAG
 #### 사전은 우선 kdbtest 의 200개 데이터에 대한 토크나이징을 잘 하도록 구성했음
 #### 0731_custom_dict_synonym/table_generate/add_tokenized_table.py 에서 정의함
+
+## 20240802
+
+kdbtest 인덱스의 모든 데이터(514 행)에 대한 사전 정의 완료
+
+0802_kdbtest_complete폴더 안에서 streamlit run 0802.py
+
+#### 사용자 정의 사전 + 동의어 사전은 0802_kdbtest_complete/table_generate/add_tokenized_table.py 에서 정의함
