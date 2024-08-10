@@ -1,3 +1,11 @@
+# backlogs
+# retriever 진행 후 찾은 top k와 max 유사도가 일정 이상이라면 few shot prompt, 미만이라면 적합한 db schema 재검색 
+# CoT를 단계를 명확하게 포맷팅해서 진행시키도록 프롬프트 수정
+
+# errorlogs
+# router prompt의 분류 오류가 잦음
+# 오늘꺼 검색해줘 -> db에 적힌 날짜를 그대로 반영하는 문제
+
 import os
 import json
 import boto3
@@ -11,6 +19,9 @@ from langchain_community.document_loaders import DataFrameLoader
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 
 import opensearchpy
 from opensearchpy import OpenSearch
@@ -36,6 +47,9 @@ opensearch_client = OpenSearch(
     ssl_show_warn=False,
     timeout=30 #30초 이상 서치하면 넘나 길다.
 )
+
+history = StreamlitChatMessageHistory(key="chat_messages")
+
 
 def LLM(LLM_input):
     client = boto3.client('bedrock-runtime', region_name='us-east-1')
@@ -65,30 +79,37 @@ def LLM_get_embedding(text, model_name="text-embedding-3-large"):
 def LLM_Router(state):
     print(f"LLM_Router가 질문 분류 중..")
     user_question = state["user_question"]
+    history.add_user_message(user_question)
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, 'prompt_files/router.txt')
 
     with open(file_path, 'r', encoding='utf-8') as file:
         llm_input = file.read()
-    llm_input = llm_input.replace('{user_question}', user_question)    
+    #llm_input = llm_input.replace('{chat_history}', MessagesPlaceholder(variable_name="history"))
+    llm_input = llm_input.replace('{chat_history}', str(history.messages))
+    llm_input = llm_input.replace('{user_question}', user_question)  
 
     user_intent = LLM(llm_input)
     state["user_intent"] = user_intent
     print(f"LLM_Router가 {user_intent}로 가라고 합니다")
     return state
 
+"""
+def LLM_common(state):
+    user_question = state["user_question"]
+    llm_output = LLM(user_question)
+    state['final_output'] = llm_output
+    return state
+"""
+
 def LLM_event_list(state):
-    #print(f"LLM_event_list가 이벤트 리스트 뽑으려는 중")
-    
     now = datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
-    #print(f"LLM_event_list가 크롤링 하는 중")
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, 'event_list.csv')
     events_crawled = pd.read_csv(file_path)
     user_question = state["user_question"]
-
-    #print(f"크롤링된 내용 : {events_crawled}")
 
     # prompt 작성
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -101,9 +122,11 @@ def LLM_event_list(state):
 
     events_output = LLM(llm_input)
     state["events_output"] = events_output
+    history.add_ai_message(events_output)
     print(f"LLM_event_list가 뽑은 이벤트 목록 : {events_crawled}")
 
     return state
+
 
 def Retrieve(state):
     print(f"Retrieve 가 검색하는 중")
@@ -116,9 +139,8 @@ def Retrieve(state):
     # s3://infra-ai-assistant-opensearch/jihoon_dictionary.txt를 업데이트 한 다음 패키지를 업데이트하면 업데이트된 새로운 룰로 토크나이징함.
 
     mapping = opensearch_client.indices.get_mapping(index=KDB_index)
-    import json
     print(f"검색하려는 KDB INDEX 이름 : {KDB_index}")
-    print(f"KDB INDEX 구조 : {json.dumps(mapping, indent=2)}")
+    #print(f"KDB INDEX 구조 : {json.dumps(mapping, indent=2)}")
 
     response = opensearch_client.indices.get(index=KDB_index)
     settings = response[KDB_index]['settings']['index']['analysis']
@@ -191,14 +213,20 @@ def Retrieve(state):
     for data in vector_searched_data:
         vector_search_result.append((data['_source']['question'], data['_source']['query']))
     
-    print(f"Lexical Retrieve 가 검색한 데이터 k개 : {lexical_search_result}")
-    print(f"Vector Retrieve 가 검색한 데이터 k개 : {vector_search_result}")
+    #print(f"Lexical Retrieve 가 검색한 데이터 k개 : {lexical_search_result}")
+    #print(f"Vector Retrieve 가 검색한 데이터 k개 : {vector_search_result}")
 
     state["top_k"] = lexical_search_result + vector_search_result 
+    
+    top_k_str = ''
+    for k, (DB_question, DB_query) in enumerate(state['top_k'], start=1):
+        top_k_str = top_k_str + f"question: {DB_question} \t query: {DB_query}"
+    history.add_ai_message(top_k_str)
 
     user_question_tokens = lexical_analyze(KDB_index, user_question, analyzer_name)
     retrieved_question_tokens = [lexical_analyze(KDB_index, retrieved_question[0], analyzer_name) for retrieved_question in state["top_k"]]
 
+    """
     print('-'*100)
     print(f"유저 입력 자연어 : {user_question}")
     print(f"유저 입력 자연어의 토큰화 결과 : {user_question_tokens}")
@@ -211,7 +239,7 @@ def Retrieve(state):
     print('-'*100)
     for retrieved_question_token in retrieved_question_tokens:
         print(f"검색된 자연어의 토큰화 결과 : {retrieved_question_token}")
-
+    """
     return state 
 
 
@@ -232,4 +260,10 @@ def LLM_Final_Generate(state):
     print(f"LLM_Final_Generate가 최종 생성함 : {final_output}")
     state["final_output"] = final_output
     
+    # SQL 코드만 chat history에 저장
+    sql_output = final_output.split('```sql')[1].split('```')[0].strip()
+    history.add_ai_message(sql_output)
+
+    print(history.messages)
+
     return state

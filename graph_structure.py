@@ -24,8 +24,12 @@ def my_graph():
     # Build graph
     workflow.add_edge(START, "LLM_Router")
     workflow.add_conditional_edges("LLM_Router",
-                                   lambda state: "LLM_event_list" if state["user_intent"] == 'EVENT' else "Retrieve", 
-                                   {"LLM_event_list": "LLM_event_list", "Retrieve": "Retrieve"}) #없으면 그래프 시각화가 엉뚱하게 됨..
+                                   #lambda state: 
+                                   lambda state: ("LLM_event_list" if state["user_intent"] == 'EVENT' 
+                                                else "Retrieve" if state["user_intent"] == 'ANALYSIS'
+                                                else "LLM_Final_Generate"),
+#)"LLM_event_list" if state["user_intent"] == 'EVENT' else "Retrieve", 
+                                   {"LLM_event_list": "LLM_event_list", "Retrieve": "Retrieve", "LLM_Final_Generate": "LLM_Final_Generate"}) #없으면 그래프 시각화가 엉뚱하게 됨..
     workflow.add_edge("LLM_event_list", END)
     workflow.add_edge("Retrieve", "LLM_Final_Generate")
     workflow.add_edge("LLM_Final_Generate", END)
