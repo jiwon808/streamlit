@@ -6,6 +6,8 @@
 # 이벤트가 수정되는 경우에 대한 대처? (연기나 취소 etc)
 # event place와 geo data 내 건물명의 mismatch 문제
 
+# k_date, title, place, lat, lon, url_link, start_date, end_date, area, category, dt
+
 
 import re
 import pandas as pd
@@ -109,7 +111,7 @@ def get_show_info_from_naver(url="https://search.naver.com/search.naver?where=ne
             
             if next_button:
                 next_button.click()
-                page.wait_for_timeout(100)  # 페이지 로딩 대기시간 조절 : 0.1초
+                page.wait_for_timeout(1000)  # 페이지 로딩 대기시간 조절 : 1초
             else:
                 print(f"Next button not found on page {page_index}")
                 break
@@ -142,8 +144,8 @@ def get_show_info_from_naver(url="https://search.naver.com/search.naver?where=ne
                         start_date_str, end_date_str = date_match
                         #start_date_obj = datetime.strptime(start_date_str, '%Y.%m.%d')
                         #end_date_obj = datetime.strptime(end_date_str, '%Y.%m.%d')
-                        event_period_start.append(start_date_str)
-                        event_period_end.append(end_date_str)
+                        event_period_start.append(start_date_str.replace('.', ''))
+                        event_period_end.append(end_date_str.replace('.', ''))
                         
                     else:
                         print("Could not find exactly two dates in the text.")

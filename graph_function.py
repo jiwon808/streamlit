@@ -86,7 +86,6 @@ def LLM_Router(state):
 
     with open(file_path, 'r', encoding='utf-8') as file:
         llm_input = file.read()
-    #llm_input = llm_input.replace('{chat_history}', MessagesPlaceholder(variable_name="history"))
     llm_input = llm_input.replace('{chat_history}', str(history.messages))
     llm_input = llm_input.replace('{user_question}', user_question)  
 
@@ -107,7 +106,7 @@ def LLM_event_list(state):
     now = datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, 'event_list.csv')
+    file_path = os.path.join(base_dir, 'event_crawling.csv')
     events_crawled = pd.read_csv(file_path)
     user_question = state["user_question"]
 
@@ -221,7 +220,7 @@ def Retrieve(state):
     top_k_str = ''
     for k, (DB_question, DB_query) in enumerate(state['top_k'], start=1):
         top_k_str = top_k_str + f"question: {DB_question} \t query: {DB_query}"
-    history.add_ai_message(top_k_str)
+    #history.add_ai_message(top_k_str)
 
     user_question_tokens = lexical_analyze(KDB_index, user_question, analyzer_name)
     retrieved_question_tokens = [lexical_analyze(KDB_index, retrieved_question[0], analyzer_name) for retrieved_question in state["top_k"]]
@@ -254,8 +253,10 @@ def LLM_Final_Generate(state):
         llm_input = file.read()
 
     llm_input = llm_input.replace('{user_question}', user_question)
-    llm_input = llm_input.replace('{retrieved_top_k}', str(retrieved_top_k))#리스트여서 문자열로 바꿔 줌
-    
+    llm_input = llm_input.replace('{chat_history}', str(MessagesPlaceholder("chat_history")))
+    llm_input = llm_input.replace('{retrieved_top_k}', str(retrieved_top_k))    #리스트여서 문자열로 바꿔 줌
+
+
     final_output = LLM(llm_input) # (instruction + retrieve된 top_k_rows + 실제 유저 입력)을 통해 최종 sql문과 CoT를 통한 생성원인을 출력
     print(f"LLM_Final_Generate가 최종 생성함 : {final_output}")
     state["final_output"] = final_output
@@ -264,6 +265,6 @@ def LLM_Final_Generate(state):
     sql_output = final_output.split('```sql')[1].split('```')[0].strip()
     history.add_ai_message(sql_output)
 
-    print(history.messages)
+    #print(history.messages)
 
     return state

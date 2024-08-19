@@ -1,3 +1,13 @@
+# backlog
+# datahub 연결 
+# 효율적으로 db 업데이트(Locality Sensitive Hashing (LSH)?)
+# 크롤링 자동화 (aws lambda 사용, https://alsxor5.tistory.com/118)
+# 네이버 api로 이벤트 lat lon 크롤링
+# event place와 geo data 내 건물명의 mismatch 문제
+# string type nan 고치기
+
+
+
 import re
 import pandas as pd
 from datetime import date
@@ -68,6 +78,7 @@ def get_event_info_from_naver(keyword, page_limit):
 
             if tt.startswith('개요'):
                 tt = tt.replace('개요 ', '')
+                tt = re.sub(r'\d+분', '', tt).strip()
                 my_dict['category'] = tt
 
         event_period_start.append(my_dict['start'])
@@ -162,8 +173,8 @@ def merge_data():
 
     # 기존 데이터와 새 데이터 로드
     origin_data = pd.read_csv('event_crawling.csv')
-    festival_data = get_event_info_from_naver('축제', 19)
-    show_data = get_event_info_from_naver('콘서트', 8)
+    festival_data = get_event_info_from_naver('축제', 19)   #80개
+    show_data = get_event_info_from_naver('콘서트', 7)  #80개
 
     # 중복 제거
     combined_data = pd.concat([origin_data, festival_data, show_data]).drop_duplicates(subset=['k_date', 'title', 'place'], keep='first')
@@ -172,6 +183,4 @@ def merge_data():
     combined_data.to_csv('event_crawling.csv', index=False)
 
 
-df = get_event_info_from_naver('축제', 1)
-df.to_csv('event_crawling.csv', index=False)
 merge_data()
