@@ -11,6 +11,9 @@ import graph_structure
 st.set_page_config(page_title="text2sql webpage")
 st.title("Text2SQL Chatbot")
 
+# credential 정보 입력
+    
+
 with st.sidebar :
     st.subheader("graph structure")
     st.image(graph_structure.my_graph_image(graph_structure.my_graph()))
@@ -30,12 +33,12 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-history = StreamlitChatMessageHistory(key="chat_messages")
+#history = StreamlitChatMessageHistory(key="chat_messages")
 
 # Chat logic
 if user_question := st.chat_input("무엇이든 물어보살"):
     st.session_state.messages.append({"role": "user", "content": user_question})
-    history.add_user_message(user_question)
+    #history.add_user_message(user_question)
 
     with st.chat_message("user"):
         st.markdown(user_question)
@@ -56,7 +59,7 @@ if user_question := st.chat_input("무엇이든 물어보살"):
                 elif node == "LLM_event_list":
                     st.markdown(f":alien: 쉿! '{node}' 진행 중. :alien:")
                     st.markdown(f"events_output: {state['events_output']}")
-                    history.add_ai_message(state['events_output'])
+                    #history.add_ai_message(state['events_output'])
                     st.markdown("\n\n")
 
                 elif node == 'Retrieve':
@@ -88,7 +91,7 @@ if user_question := st.chat_input("무엇이든 물어보살"):
                     # Streamlit에 표시
                     st.markdown(response, unsafe_allow_html=True)
                     st.session_state.messages.append({"role": "assistant", "content": response})
-                    history.add_ai_message(formatted_sql)
+                    #history.add_ai_message(formatted_sql)
 
-print('\n\n\nhistory: \n', history.messages)
+#print('\n\n\nhistory: \n', history.messages)
                 

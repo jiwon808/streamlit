@@ -1,6 +1,7 @@
 # backlogs
 # retriever 진행 후 찾은 top k와 max 유사도가 일정 이상이라면 few shot prompt, 미만이라면 적합한 db schema 재검색 
 # CoT를 단계를 명확하게 포맷팅해서 진행시키도록 프롬프트 수정
+# 스트림릿 서빙 시 ModuleNotFoundError: No module named 'distutils'
 
 # errorlogs
 # router prompt의 분류 오류가 잦음
@@ -116,13 +117,23 @@ def LLM_event_list(state):
     with open(file_path, 'r', encoding='utf-8') as file:
         llm_input = file.read()
     llm_input = llm_input.replace('{current_time}', current_time)    
-    llm_input = llm_input.replace('{events_crawled}', str(events_crawled))#리스트여서 문자열로 바꿔 줌
+    #llm_input = llm_input.replace('{events_crawled}', str(events_crawled))#리스트여서 문자열로 바꿔 줌
     llm_input = llm_input.replace('{user_question}', user_question)    
 
-    events_output = LLM(llm_input)
-    state["events_output"] = events_output
-    history.add_ai_message(events_output)
-    print(f"LLM_event_list가 뽑은 이벤트 목록 : {events_crawled}")
+    events_condition = LLM(llm_input)
+    print(events_condition)
+    exec(str(events_condition))
+
+    events_output = events_crawled[['title', 'k_date', 'place']]
+    print(events_output.shape)
+    
+    events_output_str = ''
+    for index, row in events_output.iterrows():
+        events_output_str = events_output_str + f"{index}. 제목: {row['title']} 날짜: {row['k_date']} 위치: {row['place']}  " + '\n'
+
+    state["events_output"] = events_output_str
+    history.add_ai_message(events_output_str)
+    print(f"LLM_event_list가 뽑은 이벤트 목록 : {events_output_str}")
 
     return state
 
